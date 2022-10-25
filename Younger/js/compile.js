@@ -12,28 +12,29 @@ Compile.prototype = {
             this.compileElement(this.fragment);
             this.el.appendChild(this.fragment);
         } else {
-            console.log('Dom元素不存在');
+            console.log('DOM 元素不存在');
         }
     },
     nodeToFragment: function (el) {
         var fragment = document.createDocumentFragment();
         var child = el.firstChild;
         while (child) {
-            // 将Dom元素移入fragment中
+            // 将DOM元素移入fragment中
+            // 使用appendChid方法将原dom树中的节点添加到DocumentFragment中时，会删除原来的节点。
             fragment.appendChild(child);
-            child = el.firstChild
+            child = el.firstChild;
         }
         return fragment;
     },
     compileElement: function (el) {
         var childNodes = el.childNodes;
         var self = this;
-        [].slice.call(childNodes).forEach(function(node) {
+        [].slice.call(childNodes).forEach(function (node) {
             var reg = /\{\{(.*)\}\}/;
             var text = node.textContent;
-            debugger
-            if (self.isElementNode(node)) {  
-                self.compile(node);
+
+            if (self.isElementNode(node)) {
+                self.compileNode(node);
             } else if (self.isTextNode(node) && reg.test(text)) {
                 self.compileText(node, reg.exec(text)[1]);
             }
@@ -41,80 +42,77 @@ Compile.prototype = {
             if (node.childNodes && node.childNodes.length) {
                 self.compileElement(node);
             }
-        });
+        })
     },
-    compile: function(node) {
-        var nodeAttrs = node.attributes; // 类型 v-model 的属性
+    compileNode: function (node) {
+        var nodeAttrs = node.attributes;
         var self = this;
-        debugger
-        Array.prototype.forEach.call(nodeAttrs, function(attr) {
-            var attrName = attr.name; // <input v-model="name">, === 'v-model'
+        Array.prototype.forEach.call(nodeAttrs, function (attr) {
+            var attrName = attr.name;
             if (self.isDirective(attrName)) {
-                var exp = attr.value; // <input v-model="name">, === 'name'
-                var dir = attrName.substring(2);
-                debugger
-                if (self.isEventDirective(dir)) {  // 事件指令
-                    self.compileEvent(node, self.vm, exp, dir);
-                } else {  // v-model 指令
-                    self.compileModel(node, self.vm, exp, dir);
+                var exp = attr.value; // ?
+                debugger;
+                var directive = attrName.substring(2); // 指令
+                if (self.isEventDirective(directive)) { // 事件指令
+                    self.compileEvent(node, self.vm, exp, directive);
+                } else { // v-model 指令
+                    self.compileModel(node, self.vm, exp, directive);
                 }
                 node.removeAttribute(attrName);
             }
-        });
+        })
     },
-    // exp = 表达式，{{}} 中间的表达式
-    compileText: function(node, exp) {
+    compileText: function (node, exp) {
         var self = this;
-        // this.vm 是 SelfVue 对象，里面的属性是通过 proxyKeys 绑定的代理属性，所以这里this.vm[exp]取到的值就是this.data.exp的值
         var initText = this.vm[exp];
-        debugger
         this.updateText(node, initText);
         new Watcher(this.vm, exp, function (value) {
             self.updateText(node, value);
-        });
+        })
     },
-    compileEvent: function (node, vm, exp, dir) {
-        var eventType = dir.split(':')[1];
+    compileEvent: function (node, vm, exp, directive) {
+        var eventType = directive.split(':')[1];
         var cb = vm.methods && vm.methods[exp];
 
         if (eventType && cb) {
             node.addEventListener(eventType, cb.bind(vm), false);
         }
     },
-    compileModel: function (node, vm, exp, dir) {
+    compileModel: function (node, vm, exp, directive) {
         var self = this;
         var val = this.vm[exp];
-        debugger
+        debugger; // node, exp
         this.modelUpdater(node, val);
         new Watcher(this.vm, exp, function (value) {
-            self.modelUpdater(node, value);
+            self.modelUpdater(node, value)
         });
 
-        node.addEventListener('input', function(e) {
-            var newValue = e.target.value;
-            if (val === newValue) {
+        node.addEventListener('input', function (e) {
+            var newVal = e.target.value;
+            if (val === newVal) {
                 return;
             }
-            self.vm[exp] = newValue;
-            val = newValue;
-        });
+            self.vm[exp] = newVal;
+            val = newVal;
+        })
     },
     updateText: function (node, value) {
         node.textContent = typeof value == 'undefined' ? '' : value;
     },
-    modelUpdater: function(node, value, oldValue) {
+    modleUpdater: function (node, value, oldValue) {
+        debugger; // node
         node.value = typeof value == 'undefined' ? '' : value;
     },
-    isDirective: function(attr) {
+    isDirective: function (attr) {
         return attr.indexOf('v-') == 0;
     },
-    isEventDirective: function(dir) {
-        return dir.indexOf('on:') === 0;
+    isEventDirective: function (attr) {
+        return attr.indexOf('on:') === 0;
     },
     isElementNode: function (node) {
         return node.nodeType == 1;
     },
-    isTextNode: function(node) {
+    isTextNode: function (node) {
         return node.nodeType == 3;
     }
 }
